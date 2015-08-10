@@ -1,0 +1,16 @@
+{
+  "name": "mouf/utils.session.optimistic-session-handler",
+  "description": "Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page.",
+  "keywords": ["session","handler"],
+  "homepage": "https://github.com/thecodingmachine/utils.session.optimistic-session-handler",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Alexandre Chenieux",
+      "email": "alexandre.chenieux@free.fr"
+    }
+  ],
+  "require": {
+    "php": ">=5.3.0"
+  }
+}
