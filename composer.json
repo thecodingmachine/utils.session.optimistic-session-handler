@@ -6,10 +6,15 @@
   "license": "MIT",
   "authors": [
     {
-      "name": "Alexandre Chenieux",
-      "email": "alexandre.chenieux@free.fr"
+      "name": "Xavier Huberty",
+      "email": "x.huberty@thecodingmachine.com"
     }
   ],
+  "autoload" : {
+    "psr-4": {
+      "Mouf\\Utils\\Session\\SessionHandler\\": "src/"
+    }
+  },
   "require": {
     "php": ">=5.3.0"
   }
