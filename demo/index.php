@@ -2,6 +2,8 @@
 
 require_once('../src/OptimisticSessionHandler.php');
 
+use Mouf\Utils\Session\SessionHandler\OptimisticSessionHandler;
+
 session_set_save_handler(new OptimisticSessionHandler(), true);
 echo "Starting session with the OptimisticSessionHandler<br/>";
 session_start();
