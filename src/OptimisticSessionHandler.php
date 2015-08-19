@@ -150,7 +150,7 @@ class  OptimisticSessionHandler extends \SessionHandler
                     return $this->array_compare_recursive($value, $array2[$key]);
                 }
             }
-            elseif(!isset($array2[$key]) || $array2[$key] != $value)
+            elseif((!isset($array2[$key]) && $array2[$key] !== null) || $array2[$key] != $value)
             {
                 return false;
             }
