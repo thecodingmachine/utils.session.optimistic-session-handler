@@ -28,13 +28,19 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     protected $conflictRules = array();
 
+
+    const IGNORE = -1;
+    const OVERWRITE = 1;
+    const FAIL = 0;
+
     /**
      * Define the configuration value for "session.save_handler"
      * By default PHP save session in files
      *
      * @return string
      */
-    public function __construct() {
+    public function __construct(array $conflictRules = array()) {
+        $this->conflictRules = $conflictRules;
         ini_set('session.save_handler', 'files');
         register_shutdown_function(array($this, 'writeIfSessionChanged'));
     }
@@ -103,16 +109,25 @@ class  OptimisticSessionHandler extends \SessionHandler
                     $mine = isset($currentSession[$key])?:null;
                     $theirs = isset($_SESSION[$key])?:null;
                     if ($base != $mine && $base != $theirs && $mine != $theirs) {
-                        foreach($this->conflictRules as $regex => $conflictRule){
-                            if(preg_match($regex, $key)){
-                                if ($conflictRule == 1) {
+                        $hasConflictRules = false;
+                        foreach($this->conflictRules as $regex => $conflictRule) {
+                            if (preg_match($regex, $key)) {
+                                if ($conflictRule == self::OVERWRITE) {
+                                    $hasConflictRules = true;
                                     $_SESSION[$key] = $mine;
-                                } elseif ($conflictRule == -1) {
+                                    break;
+                                } elseif ($conflictRule == self::IGNORE) {
+                                    $hasConflictRules = true;
                                     $_SESSION[$key] = $theirs;
-                                } elseif ($conflictRule == 0){
+                                    break;
+                                } elseif ($conflictRule == self::FAIL) {
                                     throw new \Exception('Your session conflicts with a session change in another process on key "'.$key.'"');
                                 }
                             }
+                        }
+                        if(!$hasConflictRules) {
+                            throw new \Exception('Your session conflicts with a session change in another process on key "'.$key.'.
+                            You can configure a conflict rule which allow us to handle the conflict"');
                         }
                     } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {
                         $_SESSION[$key] = $mine;

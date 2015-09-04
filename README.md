@@ -27,6 +27,11 @@ Then you can start the session as usual
 
 Then the `$_SESSION` array is accessible.
 
+You can configure rules for managing conflicts. Just add element to the $conflictRules[regex] = rule. The possible rules are
+IGNORE => Don't use the current change.
+OVERWRITE => Use the current change.
+FAIL => Throw exception.
+
 ### Destroying the session
 **Warning:** The session can't be destroyed by `session_destroy()` (It will throw an error). To destroy the session empty the `$_SESSION` array.
 
