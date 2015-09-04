@@ -1,6 +1,7 @@
 <?php
 
 namespace Mouf\Utils\Session\SessionHandler;
+use Doctrine\ORM\SessionConflictException;
 
 /**
  * Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page
@@ -121,12 +122,12 @@ class  OptimisticSessionHandler extends \SessionHandler
                                     $_SESSION[$key] = $theirs;
                                     break;
                                 } elseif ($conflictRule == self::FAIL) {
-                                    throw new \Exception('Your session conflicts with a session change in another process on key "'.$key.'"');
+                                    throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'"');
                                 }
                             }
                         }
                         if(!$hasConflictRules) {
-                            throw new \Exception('Your session conflicts with a session change in another process on key "'.$key.'.
+                            throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'.
                             You can configure a conflict rule which allow us to handle the conflict"');
                         }
                     } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {
