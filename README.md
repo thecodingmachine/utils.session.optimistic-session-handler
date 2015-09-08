@@ -27,6 +27,17 @@ Then you can start the session as usual
 
 Then the `$_SESSION` array is accessible.
 
+You can configure rules for managing conflicts. Just add element to the class parameter $conflictRules.
+The possible rules are:
+
+* IGNORE => Don't use the current change.
+* OVERWRITE => Use the current change.
+* FAIL => Throw exception.
+
+So you can just declare a new instance like this:
+
+    $handler = new OptimisticSessionHandler(array("key_to_override" => OptimisticSessionHandler::OVERRIDE));
+
 ### Destroying the session
 **Warning:** The session can't be destroyed by `session_destroy()` (It will throw an error). To destroy the session empty the `$_SESSION` array.
 
