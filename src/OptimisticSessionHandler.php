@@ -1,7 +1,7 @@
 <?php
 
 namespace Mouf\Utils\Session\SessionHandler;
-use Doctrine\ORM\SessionConflictException;
+
 
 /**
  * Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page
@@ -31,7 +31,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
 
     const IGNORE = -1;
-    const OVERWRITE = 1;
+    const OVERRIDE = 1;
     const FAIL = 0;
 
     /**
@@ -113,7 +113,7 @@ class  OptimisticSessionHandler extends \SessionHandler
                         $hasConflictRules = false;
                         foreach($this->conflictRules as $regex => $conflictRule) {
                             if (preg_match($regex, $key)) {
-                                if ($conflictRule == self::OVERWRITE) {
+                                if ($conflictRule == self::OVERRIDE) {
                                     $hasConflictRules = true;
                                     $_SESSION[$key] = $mine;
                                     break;
