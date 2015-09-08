@@ -2,6 +2,7 @@
 
 namespace Mouf\Utils\Session\SessionHandler;
 
+
 /**
  * Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page
  *
@@ -24,12 +25,23 @@ class  OptimisticSessionHandler extends \SessionHandler
     protected $lock = false;
 
     /**
+     * @var array
+     */
+    protected $conflictRules = array();
+
+
+    const IGNORE = -1;
+    const OVERRIDE = 1;
+    const FAIL = 0;
+
+    /**
      * Define the configuration value for "session.save_handler"
      * By default PHP save session in files
      *
      * @return string
      */
-    public function __construct() {
+    public function __construct(array $conflictRules = array()) {
+        $this->conflictRules = $conflictRules;
         ini_set('session.save_handler', 'files');
         register_shutdown_function(array($this, 'writeIfSessionChanged'));
     }
@@ -83,22 +95,45 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         if($needWrite) {
             $this->lock = true;
-            ob_start();
-            session_start();
-            ob_clean();
+            //We need @session_start() because we can't send session cookie more then once.
+            @session_start();
             $sameOldAndNew = $this->array_compare_recursive($_SESSION, $oldSession);
             $sameOldAndNew = $sameOldAndNew || $this->array_compare_recursive($oldSession, $_SESSION);
 
             if($sameOldAndNew) {
                 $_SESSION = $currentSession;
             } else {
-                $tab1 = array_merge($_SESSION, $currentSession);
-                $tab2 = array_merge($currentSession, $_SESSION);
-                if(!$this->array_compare_recursive($tab1, $tab2)) {
-                    throw new \Exception('Conflicts in sessions changes');
-                }
+                $keys = array_keys(array_merge($_SESSION, $currentSession, $oldSession));
 
-                $_SESSION = $tab1;
+                foreach ($keys as $key) {
+                    $base = isset($oldSession[$key])?:null;
+                    $mine = isset($currentSession[$key])?:null;
+                    $theirs = isset($_SESSION[$key])?:null;
+                    if ($base != $mine && $base != $theirs && $mine != $theirs) {
+                        $hasConflictRules = false;
+                        foreach($this->conflictRules as $regex => $conflictRule) {
+                            if (preg_match($regex, $key)) {
+                                if ($conflictRule == self::OVERRIDE) {
+                                    $hasConflictRules = true;
+                                    $_SESSION[$key] = $mine;
+                                    break;
+                                } elseif ($conflictRule == self::IGNORE) {
+                                    $hasConflictRules = true;
+                                    $_SESSION[$key] = $theirs;
+                                    break;
+                                } elseif ($conflictRule == self::FAIL) {
+                                    throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'"');
+                                }
+                            }
+                        }
+                        if(!$hasConflictRules) {
+                            throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'.
+                            You can configure a conflict rule which allow us to handle the conflict"');
+                        }
+                    } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {
+                        $_SESSION[$key] = $mine;
+                    }
+                }
             }
             session_write_close();
             $this->lock = false;
@@ -147,7 +182,9 @@ class  OptimisticSessionHandler extends \SessionHandler
                 }
                 else
                 {
-                    return $this->array_compare_recursive($value, $array2[$key]);
+                    if(!$this->array_compare_recursive($value, $array2[$key])) {
+                        return false;
+                    }
                 }
             }
             elseif((!isset($array2[$key]) && $array2[$key] !== null) || $array2[$key] != $value)
