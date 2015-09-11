@@ -107,9 +107,9 @@ class  OptimisticSessionHandler extends \SessionHandler
                 $keys = array_keys(array_merge($_SESSION, $currentSession, $oldSession));
 
                 foreach ($keys as $key) {
-                    $base = isset($oldSession[$key]) ?: null;
-                    $mine = isset($currentSession[$key]) ?: null;
-                    $theirs = isset($_SESSION[$key]) ?: null;
+                    $base = isset($oldSession[$key]) ? $oldSession[$key] : null;
+                    $mine = isset($currentSession[$key]) ? $currentSession[$key] : null;
+                    $theirs = isset($_SESSION[$key]) ? $_SESSION[$key] : null;
                     if ($base != $mine && $base != $theirs && $mine != $theirs) {
                         $hasConflictRules = false;
                         foreach ($this->conflictRules as $regex => $conflictRule) {
