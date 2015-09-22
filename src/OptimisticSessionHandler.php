@@ -82,9 +82,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         if ($currentSession === array()) {
             $this->lock = true;
-            ob_start();
-            session_start();
-            ob_clean();
+            @session_start();
             session_destroy();
             $this->lock = false;
 
