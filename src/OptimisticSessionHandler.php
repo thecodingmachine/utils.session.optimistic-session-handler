@@ -56,7 +56,13 @@ class  OptimisticSessionHandler extends \SessionHandler
     public function read($session_id)
     {
         $data = parent::read($session_id);
-        $this->session = $this->unserialize_session_data($data);
+
+        // Unserialize session (trick : session_decode write in $_SESSION)
+        $oldSession = $_SESSION;
+        session_decode($data);
+        $this->session = $_SESSION;
+        $_SESSION = $oldSession;
+
         if (!$this->lock) {
             $_SESSION = $this->session;
             session_write_close();
@@ -90,14 +96,12 @@ class  OptimisticSessionHandler extends \SessionHandler
         }
 
         $needWrite = !$this->array_compare_recursive($oldSession, $currentSession);
-        $needWrite = $needWrite || !$this->array_compare_recursive($currentSession, $oldSession);
 
         if ($needWrite) {
             $this->lock = true;
             //We need @session_start() because we can't send session cookie more then once.
             @session_start();
             $sameOldAndNew = $this->array_compare_recursive($_SESSION, $oldSession);
-            $sameOldAndNew = $sameOldAndNew || $this->array_compare_recursive($oldSession, $_SESSION);
 
             if ($sameOldAndNew) {
                 $_SESSION = $currentSession;
@@ -140,27 +144,6 @@ class  OptimisticSessionHandler extends \SessionHandler
     }
 
     /**
-     * Convert the serialized string which represent the session to an array.
-     *
-     * @param string $serialized_string
-     *
-     * @return array
-     */
-    public function unserialize_session_data($serialized_string)
-    {
-        $variables = array();
-        $a = preg_split("/(\w+)\|/", $serialized_string, -1, PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE);
-
-        for ($i = 0; $i < count($a); $i = $i + 2) {
-            if (isset($a[$i + 1])) {
-                $variables[$a[$i]] = unserialize($a[$i + 1]);
-            }
-        }
-
-        return($variables);
-    }
-
-    /**
      * Compare recursively two arrays and return false if they are not the same.
      *
      * @param $array1
@@ -170,6 +153,10 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function array_compare_recursive($array1, $array2)
     {
+        if (count($array1) !== count($array2)) {
+            return false;
+        }
+
         foreach ($array1 as $key => $value) {
             if (is_array($value)) {
                 if (!isset($array2[$key]) || !is_array($array2[$key])) {
@@ -179,7 +166,7 @@ class  OptimisticSessionHandler extends \SessionHandler
                         return false;
                     }
                 }
-            } elseif (!isset($array2[$key]) || $array2[$key] != $value) {
+            } elseif (!isset($array2[$key]) || $array2[$key] !== $value) {
                 return false;
             }
         }
