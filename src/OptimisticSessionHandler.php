@@ -45,6 +45,14 @@ class  OptimisticSessionHandler extends \SessionHandler
         register_shutdown_function(array($this, 'writeIfSessionChanged'));
     }
 
+    private $sessionBeforeSessionStart;
+
+    public function open($save_path, $name)
+    {
+        $this->sessionBeforeSessionStart = isset($_SESSION) ? $_SESSION : [];
+        parent::open($save_path, $name);
+    }
+
     /**
      * This function is automatically called after the "open" function
      * Use the PHP default "read" function, then save the data and close the session if the session has not to be locked.
@@ -55,20 +63,38 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function read($session_id)
     {
-        $data = parent::read($session_id);
-
-        // Unserialize session (trick : session_decode write in $_SESSION)
-        $oldSession = $_SESSION;
-        session_decode($data);
-        $this->session = $_SESSION;
-        $_SESSION = $oldSession;
-
+        $_SESSION = $this->sessionBeforeSessionStart;
+        $diskSession = $this->getSessionStoredOnDisk($session_id);
         if (!$this->lock) {
-            $_SESSION = $this->session;
             session_write_close();
         }
+        $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
+        $finalSession = $ret['finalSession'];
 
-        return $data;
+        $this->session = $finalSession;
+        $_SESSION = $finalSession;
+
+        return session_encode();
+    }
+
+    /**
+     * Reads a session from the disk and returns it.
+     *
+     * @param string $session_id
+     *
+     * @return mixed
+     */
+    private function getSessionStoredOnDisk($session_id)
+    {
+        $data = parent::read($session_id);
+
+        // Unserialize session (trick : session_decode writes in $_SESSION)
+        $currentSession = $_SESSION;
+        session_decode($data);
+        $diskSession = $_SESSION;
+        $_SESSION = $currentSession;
+
+        return $diskSession;
     }
 
     /**
@@ -83,10 +109,10 @@ class  OptimisticSessionHandler extends \SessionHandler
             return;
         }
 
-        $currentSession = $_SESSION;
-        $oldSession = $this->session;
+        //$currentSession = $_SESSION;
+        //$oldSession = $this->session;
 
-        if ($currentSession === array()) {
+        if ($_SESSION === array()) {
             $this->lock = true;
             @session_start();
             session_destroy();
@@ -95,34 +121,59 @@ class  OptimisticSessionHandler extends \SessionHandler
             return;
         }
 
-        $needWrite = !$this->array_compare_recursive($oldSession, $currentSession);
+        $this->lock = true;
+        //We need to '@' the session_start() because we can't send session cookie more then once.
+        @session_start();
+
+        session_write_close();
+        $this->lock = false;
+    }
+
+    /**
+     * @param $oldSession
+     * @param $localSession
+     * @param $remoteSession
+     *
+     * @return ["needWrite"=>bool, "finalSession"=>array]
+     */
+    private function compareSessions($oldSession, $localSession, $remoteSession)
+    {
+        if ($oldSession === null) {
+            $oldSession = [];
+        }
+        if ($localSession === null) {
+            $localSession = [];
+        }
+        if ($remoteSession === null) {
+            $remoteSession = [];
+        }
+
+        $needWrite = !$this->array_compare_recursive($oldSession, $localSession);
 
         if ($needWrite) {
-            $this->lock = true;
-            //We need @session_start() because we can't send session cookie more then once.
-            @session_start();
-            $sameOldAndNew = $this->array_compare_recursive($_SESSION, $oldSession);
+            $remoteChanged = !$this->array_compare_recursive($remoteSession, $oldSession);
 
-            if ($sameOldAndNew) {
-                $_SESSION = $currentSession;
+            if (!$remoteChanged) {
+                $finalSession = $localSession;
             } else {
-                $keys = array_keys(array_merge($_SESSION, $currentSession, $oldSession));
+                $finalSession = $remoteSession;
+                $keys = array_keys(array_merge($remoteSession, $localSession, $oldSession));
 
                 foreach ($keys as $key) {
                     $base = isset($oldSession[$key]) ? $oldSession[$key] : null;
-                    $mine = isset($currentSession[$key]) ? $currentSession[$key] : null;
-                    $theirs = isset($_SESSION[$key]) ? $_SESSION[$key] : null;
+                    $mine = isset($localSession[$key]) ? $localSession[$key] : null;
+                    $theirs = isset($remoteSession[$key]) ? $remoteSession[$key] : null;
                     if ($base != $mine && $base != $theirs && $mine != $theirs) {
                         $hasConflictRules = false;
                         foreach ($this->conflictRules as $regex => $conflictRule) {
                             if (preg_match($regex, $key)) {
                                 if ($conflictRule == self::OVERRIDE) {
                                     $hasConflictRules = true;
-                                    $_SESSION[$key] = $mine;
+                                    $finalSession[$key] = $mine;
                                     break;
                                 } elseif ($conflictRule == self::IGNORE) {
                                     $hasConflictRules = true;
-                                    $_SESSION[$key] = $theirs;
+                                    $finalSession[$key] = $theirs;
                                     break;
                                 } elseif ($conflictRule == self::FAIL) {
                                     throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'"');
@@ -134,24 +185,26 @@ class  OptimisticSessionHandler extends \SessionHandler
                             You can configure a conflict rule which allow us to handle the conflict"');
                         }
                     } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {
-                        $_SESSION[$key] = $mine;
+                        $finalSession[$key] = $mine;
                     }
                 }
             }
-            session_write_close();
-            $this->lock = false;
+        } else {
+            $finalSession = $remoteSession;
         }
+
+        return ['needWrite' => $needWrite, 'finalSession' => $finalSession];
     }
 
     /**
      * Compare recursively two arrays and return false if they are not the same.
      *
-     * @param $array1
-     * @param $array2
+     * @param array $array1
+     * @param array $array2
      *
      * @return bool
      */
-    public function array_compare_recursive($array1, $array2)
+    public function array_compare_recursive(array $array1, array $array2)
     {
         if (count($array1) !== count($array2)) {
             return false;

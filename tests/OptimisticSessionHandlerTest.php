@@ -7,6 +7,24 @@ use GuzzleHttp\Promise;
 
 class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 {
+    public function testSimpleChange()
+    {
+        global $root_url;
+
+        $client = new Client(['base_uri' => 'http://localhost'.$root_url, 'cookies' => true]);
+
+        // First request to start the session:
+        $response = $client->get('tests/fixtures/set_value.php?a=1');
+        $body = (string) $response->getBody();
+
+        $this->assertEmpty($body);
+
+        $response = $client->get('tests/fixtures/get_values.php');
+        $body = (string) $response->getBody();
+
+        $this->assertContains('a=1', $body);
+    }
+
     public function testTwoSimultaneousNonConflictingChanges()
     {
         global $root_url;
@@ -27,6 +45,9 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         // Wait on all of the requests to complete.
         $results = Promise\unwrap($promises);
+
+        $this->assertEmpty((string) $results['a']->getBody());
+        $this->assertEmpty((string) $results['b']->getBody());
 
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
@@ -52,7 +73,6 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $body = (string) $response->getBody();
 
         $this->assertEmpty($body);
-
 
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
@@ -84,5 +104,4 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $this->assertEmpty((string) $results['a']->getBody());
         $this->assertContains('SessionConflictException', (string) $results['b']->getBody());
     }
-
 }
