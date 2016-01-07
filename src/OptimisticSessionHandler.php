@@ -49,10 +49,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
     public function open($save_path , $name){
         $this->sessionBeforeSessionStart = isset($_SESSION)?$_SESSION:[];
-        error_log(__LINE__ . " OPEN START :: "  . $_SERVER['REQUEST_URI'] . " :: " . var_export(isset($this->sessionBeforeSessionStart['wo6GWnGEJkteGVCElMY9MoufUserLogin']), true));
-        //error_log("##" . __LINE__ . var_export($this->sessionBeforeSessionStart, true));
         parent::open($save_path , $name);
-        //error_log("##" . __LINE__ . var_export($_SESSION, true));
     }
 
     /**
@@ -66,21 +63,15 @@ class  OptimisticSessionHandler extends \SessionHandler
     public function read($session_id)
     {
         $_SESSION = $this->sessionBeforeSessionStart;
-        error_log(__LINE__ . " READ START ::"  . $_SERVER['REQUEST_URI'] . " :: " . var_export(isset($_SESSION['wo6GWnGEJkteGVCElMY9MoufUserLogin']), true));
-        //error_log(__LINE__ . var_export($_SESSION, true));
         $diskSession = $this->getSessionStoredOnDisk($session_id);
-        //error_log(__LINE__ . var_export($diskSession, true));
         if (!$this->lock) {
-            //$_SESSION = $this->session;
             session_write_close();
         }
-        //error_log(__LINE__ . var_export($this->session, true));
         $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
         $finalSession = $ret['finalSession'];
 
         $this->session = $finalSession;
         $_SESSION = $finalSession;
-        error_log(__LINE__ . " READ FINAL ::"  . $_SERVER['REQUEST_URI'] . " :: " . var_export(isset($_SESSION['wo6GWnGEJkteGVCElMY9MoufUserLogin']), true));
         return session_encode();
     }
 
@@ -96,7 +87,6 @@ class  OptimisticSessionHandler extends \SessionHandler
         // Unserialize session (trick : session_decode writes in $_SESSION)
         $currentSession = $_SESSION;
         session_decode($data);
-        //error_log(__LINE__ . var_export($data, true));
         $diskSession = $_SESSION;
         $_SESSION = $currentSession;
 
@@ -111,9 +101,7 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function writeIfSessionChanged()
     {
-        error_log(__LINE__ . " WRITE CLOSE START :: "  . $_SERVER['REQUEST_URI'] . " :: " . var_export(isset($_SESSION['wo6GWnGEJkteGVCElMY9MoufUserLogin']), true));
         if ($this->session === null) {
-            error_log("NULL SESSION");
             return;
         }
 
@@ -121,7 +109,6 @@ class  OptimisticSessionHandler extends \SessionHandler
         //$oldSession = $this->session;
 
         if ($_SESSION === array()) {
-            error_log("EMPTY SESSION");
             $this->lock = true;
             @session_start();
             session_destroy();
@@ -131,59 +118,10 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->lock = true;
         //We need to '@' the session_start() because we can't send session cookie more then once.
-        //error_log(__LINE__ . var_export($_SESSION, true));
         @session_start();
-        error_log(__LINE__ . " WRITE CLOSE END :::: " . var_export($_SESSION, true));
 
         session_write_close();
         $this->lock = false;
-//        error_log(var_export($_SESSION, true));
-        /*$needWrite = !$this->array_compare_recursive($oldSession, $currentSession);
-
-        if ($needWrite) {
-            $this->lock = true;
-            //We need @session_start() because we can't send session cookie more then once.
-            @session_start();
-            $sameOldAndNew = $this->array_compare_recursive($_SESSION, $oldSession);
-
-            if ($sameOldAndNew) {
-                $_SESSION = $currentSession;
-            } else {
-                $keys = array_keys(array_merge($_SESSION, $currentSession, $oldSession));
-
-                foreach ($keys as $key) {
-                    $base = isset($oldSession[$key]) ? $oldSession[$key] : null;
-                    $mine = isset($currentSession[$key]) ? $currentSession[$key] : null;
-                    $theirs = isset($_SESSION[$key]) ? $_SESSION[$key] : null;
-                    if ($base != $mine && $base != $theirs && $mine != $theirs) {
-                        $hasConflictRules = false;
-                        foreach ($this->conflictRules as $regex => $conflictRule) {
-                            if (preg_match($regex, $key)) {
-                                if ($conflictRule == self::OVERRIDE) {
-                                    $hasConflictRules = true;
-                                    $_SESSION[$key] = $mine;
-                                    break;
-                                } elseif ($conflictRule == self::IGNORE) {
-                                    $hasConflictRules = true;
-                                    $_SESSION[$key] = $theirs;
-                                    break;
-                                } elseif ($conflictRule == self::FAIL) {
-                                    throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'"');
-                                }
-                            }
-                        }
-                        if (!$hasConflictRules) {
-                            throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'.
-                            You can configure a conflict rule which allow us to handle the conflict"');
-                        }
-                    } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {
-                        $_SESSION[$key] = $mine;
-                    }
-                }
-            }
-            session_write_close();
-            $this->lock = false;
-        }*/
     }
 
     /**
