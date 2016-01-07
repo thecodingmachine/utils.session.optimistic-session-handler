@@ -7,7 +7,6 @@ use GuzzleHttp\Promise;
 
 class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 {
-
     public function testSimpleChange()
     {
         global $root_url;
@@ -19,7 +18,6 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $body = (string) $response->getBody();
 
         $this->assertEmpty($body);
-
 
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
@@ -76,7 +74,6 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEmpty($body);
 
-
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
 
@@ -107,5 +104,4 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $this->assertEmpty((string) $results['a']->getBody());
         $this->assertContains('SessionConflictException', (string) $results['b']->getBody());
     }
-
 }

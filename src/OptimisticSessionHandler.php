@@ -47,9 +47,10 @@ class  OptimisticSessionHandler extends \SessionHandler
 
     private $sessionBeforeSessionStart;
 
-    public function open($save_path , $name){
-        $this->sessionBeforeSessionStart = isset($_SESSION)?$_SESSION:[];
-        parent::open($save_path , $name);
+    public function open($save_path, $name)
+    {
+        $this->sessionBeforeSessionStart = isset($_SESSION) ? $_SESSION : [];
+        parent::open($save_path, $name);
     }
 
     /**
@@ -72,6 +73,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->session = $finalSession;
         $_SESSION = $finalSession;
+
         return session_encode();
     }
 
@@ -79,9 +81,11 @@ class  OptimisticSessionHandler extends \SessionHandler
      * Reads a session from the disk and returns it.
      *
      * @param string $session_id
+     *
      * @return mixed
      */
-    private function getSessionStoredOnDisk($session_id) {
+    private function getSessionStoredOnDisk($session_id)
+    {
         $data = parent::read($session_id);
 
         // Unserialize session (trick : session_decode writes in $_SESSION)
@@ -113,6 +117,7 @@ class  OptimisticSessionHandler extends \SessionHandler
             @session_start();
             session_destroy();
             $this->lock = false;
+
             return;
         }
 
@@ -128,16 +133,18 @@ class  OptimisticSessionHandler extends \SessionHandler
      * @param $oldSession
      * @param $localSession
      * @param $remoteSession
+     *
      * @return ["needWrite"=>bool, "finalSession"=>array]
      */
-    private function compareSessions($oldSession, $localSession, $remoteSession) {
-        if ($oldSession === null){
+    private function compareSessions($oldSession, $localSession, $remoteSession)
+    {
+        if ($oldSession === null) {
             $oldSession = [];
         }
-        if ($localSession === null){
+        if ($localSession === null) {
             $localSession = [];
         }
-        if ($remoteSession === null){
+        if ($remoteSession === null) {
             $remoteSession = [];
         }
 
@@ -186,7 +193,7 @@ class  OptimisticSessionHandler extends \SessionHandler
             $finalSession = $remoteSession;
         }
 
-        return ["needWrite"=>$needWrite, "finalSession"=>$finalSession];
+        return ['needWrite' => $needWrite, 'finalSession' => $finalSession];
     }
 
     /**
