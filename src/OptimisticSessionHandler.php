@@ -28,6 +28,16 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     protected $conflictRules = array();
 
+    /**
+     * Tells if the "read" function has been called.
+     * This allows the "writeIfSessionChanged" to check if the OptimisticSessionHandler has been unregistered.
+     *
+     * @var bool
+     */
+    private $readCalled;
+
+    private $shutdownFunctionRegistered = false;
+
     const IGNORE = -1;
     const OVERRIDE = 1;
     const FAIL = 0;
@@ -42,13 +52,16 @@ class  OptimisticSessionHandler extends \SessionHandler
     {
         $this->conflictRules = $conflictRules;
         ini_set('session.save_handler', 'files');
-        register_shutdown_function(array($this, 'writeIfSessionChanged'));
     }
 
     private $sessionBeforeSessionStart;
 
     public function open($save_path, $name)
     {
+        if (!$this->shutdownFunctionRegistered) {
+            register_shutdown_function(array($this, 'writeIfSessionChanged'));
+            $this->shutdownFunctionRegistered = true;
+        }
         $this->sessionBeforeSessionStart = isset($_SESSION) ? $_SESSION : [];
         parent::open($save_path, $name);
     }
@@ -73,6 +86,8 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->session = $finalSession;
         $_SESSION = $finalSession;
+
+        $this->readCalled = true;
 
         return session_encode();
     }
@@ -109,12 +124,9 @@ class  OptimisticSessionHandler extends \SessionHandler
             return;
         }
 
-        //$currentSession = $_SESSION;
-        //$oldSession = $this->session;
-
         if ($_SESSION === array()) {
             $this->lock = true;
-            @session_start();
+            $this->secureSessionStart();
             session_destroy();
             $this->lock = false;
 
@@ -122,11 +134,20 @@ class  OptimisticSessionHandler extends \SessionHandler
         }
 
         $this->lock = true;
-        //We need to '@' the session_start() because we can't send session cookie more then once.
-        @session_start();
+        $this->secureSessionStart();
 
         session_write_close();
         $this->lock = false;
+    }
+
+    private function secureSessionStart()
+    {
+        $this->readCalled = false;
+        //We need to '@' the session_start() because we can't send session cookie more then once.
+        @session_start();
+        if (!$this->readCalled) {
+            throw new UnregisteredHandlerException('It seems that the OptimisticSessionHandler has been unregistered.');
+        }
     }
 
     /**
