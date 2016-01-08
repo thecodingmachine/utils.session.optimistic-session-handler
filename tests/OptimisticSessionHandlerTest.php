@@ -68,7 +68,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEmpty($body);
 
-        // First request to start the session:
+        // Perform 2 session starts :
         $response = $client->get('tests/fixtures/double_session_start.php?a=42');
         $body = (string) $response->getBody();
 
@@ -103,5 +103,18 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertEmpty((string) $results['a']->getBody());
         $this->assertContains('SessionConflictException', (string) $results['b']->getBody());
+    }
+
+    public function testUnregisterSesssionHandler()
+    {
+        global $root_url;
+
+        $client = new Client(['base_uri' => 'http://localhost'.$root_url, 'cookies' => true]);
+
+        // First request to start the session:
+        $response = $client->get('tests/fixtures/start-unregister-and-restart.php');
+        $body = (string) $response->getBody();
+
+        $this->assertContains('UnregisteredHandlerException', $body);
     }
 }
