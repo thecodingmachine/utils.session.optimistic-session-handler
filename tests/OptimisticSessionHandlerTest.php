@@ -117,4 +117,27 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         $this->assertContains('UnregisteredHandlerException', $body);
     }
+
+    public function testReadConsistency()
+    {
+        global $root_url;
+
+        $client = new Client(['base_uri' => 'http://localhost'.$root_url, 'cookies' => true]);
+
+        // First request to start the session:
+        $response = $client->get('tests/fixtures/set_value.php?a=1');
+        $body = (string) $response->getBody();
+        $this->assertEmpty($body);
+
+        // Initiate each request but do not block
+        $promises = [
+            'firstRead' => $client->getAsync('tests/fixtures/get_values.php?waitBeforeQuit=2'),
+            'secondRead' => $client->getAsync('tests/fixtures/get_values.php?waitBeforeStart=1'),
+        ];
+
+        // Wait on all of the requests to complete.
+        $results = Promise\unwrap($promises);
+        $this->assertContains('a=1', (string) $results['firstRead']->getBody());
+        $this->assertContains('a=1', (string) $results['secondRead']->getBody());
+    }
 }

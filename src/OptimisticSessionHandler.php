@@ -2,6 +2,8 @@
 
 namespace Mouf\Utils\Session\SessionHandler;
 
+use Psr\Log\LoggerInterface;
+
 /**
  * Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page.
  *
@@ -29,6 +31,11 @@ class  OptimisticSessionHandler extends \SessionHandler
     protected $conflictRules = array();
 
     /**
+     * @var LoggerInterface
+     */
+    protected $logger;
+
+    /**
      * Tells if the "read" function has been called.
      * This allows the "writeIfSessionChanged" to check if the OptimisticSessionHandler has been unregistered.
      *
@@ -36,6 +43,14 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     private $readCalled;
 
+    /**
+     * @var bool
+     */
+    private $fisrtSessionStart = true;
+
+    /**
+     * @var bool
+     */
     private $shutdownFunctionRegistered = false;
 
     const IGNORE = -1;
@@ -48,14 +63,20 @@ class  OptimisticSessionHandler extends \SessionHandler
      *
      * @param array $conflictRules
      */
-    public function __construct(array $conflictRules = array())
+    public function __construct(array $conflictRules = array(), LoggerInterface $logger = null)
     {
         $this->conflictRules = $conflictRules;
+        $this->logger = $logger;
+
         ini_set('session.save_handler', 'files');
     }
 
     private $sessionBeforeSessionStart;
 
+    /**
+     * @param string $save_path
+     * @param string $name
+     */
     public function open($save_path, $name)
     {
         if (!$this->shutdownFunctionRegistered) {
@@ -76,18 +97,34 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function read($session_id)
     {
+        if (null !== $this->logger) {
+            $this->logger->debug($_SERVER['REQUEST_URI'].'Enter session read');
+        }
         $_SESSION = $this->sessionBeforeSessionStart;
         $diskSession = $this->getSessionStoredOnDisk($session_id);
         if (!$this->lock) {
+            $_SESSION = $diskSession;
             session_write_close();
+            $_SESSION = $this->sessionBeforeSessionStart;
         }
-        $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
-        $finalSession = $ret['finalSession'];
 
-        $this->session = $finalSession;
+        if (!$this->lock && !$this->fisrtSessionStart) {
+            $finalSession = $_SESSION;
+        } else {
+            $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
+            $finalSession = $ret['finalSession'];
+        }
+
+        if (!$this->lock && $this->fisrtSessionStart) {
+            $this->session = $finalSession;
+        }
         $_SESSION = $finalSession;
-
         $this->readCalled = true;
+        $this->fisrtSessionStart = false;
+
+        if (null !== $this->logger) {
+            $this->logger->debug($_SERVER['REQUEST_URI'].' READ lock : '.var_export($this->lock, true).' --- Session: '.var_export($_SESSION, true));
+        }
 
         return session_encode();
     }
@@ -120,6 +157,9 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function writeIfSessionChanged()
     {
+        if (null !== $this->logger) {
+            $this->logger->debug($_SERVER['REQUEST_URI'].'Enter session write');
+        }
         if ($this->session === null) {
             return;
         }
@@ -135,11 +175,14 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->lock = true;
         $this->secureSessionStart();
-
         session_write_close();
+        $this->session = $_SESSION;
         $this->lock = false;
     }
 
+    /**
+     * @throws UnregisteredHandlerException
+     */
     private function secureSessionStart()
     {
         $this->readCalled = false;
