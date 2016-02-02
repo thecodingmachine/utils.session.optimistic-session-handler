@@ -1,6 +1,8 @@
 <?php
 
 namespace Mouf\Utils\Session\SessionHandler;
+use Mouf\Utils\Log\Psr\ErrorLogLogger;
+use Psr\Log\LoggerInterface;
 
 /**
  * Session handler that releases session lock quickly. Usefull for multiple ajax calls on the same page.
@@ -29,6 +31,11 @@ class  OptimisticSessionHandler extends \SessionHandler
     protected $conflictRules = array();
 
     /**
+     * @var LoggerInterface
+     */
+    protected $logger;
+
+    /**
      * Tells if the "read" function has been called.
      * This allows the "writeIfSessionChanged" to check if the OptimisticSessionHandler has been unregistered.
      *
@@ -51,6 +58,7 @@ class  OptimisticSessionHandler extends \SessionHandler
     public function __construct(array $conflictRules = array())
     {
         $this->conflictRules = $conflictRules;
+        $this->logger = new ErrorLogLogger();
         ini_set('session.save_handler', 'files');
     }
 
@@ -76,17 +84,24 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     public function read($session_id)
     {
+        $this->logger->info("read");
         $_SESSION = $this->sessionBeforeSessionStart;
         $diskSession = $this->getSessionStoredOnDisk($session_id);
+        $_SESSION = $diskSession;
         if (!$this->lock) {
+            $this->logger->debug($_SERVER['REQUEST_URI'].' Session not locked $_SESSION :' . var_export($_SESSION, true));
             session_write_close();
         }
+        $_SESSION = $this->sessionBeforeSessionStart;
+        $this->logger->debug($_SERVER['REQUEST_URI'].' $this->session :' . var_export($this->session, true));
+        $this->logger->debug($_SERVER['REQUEST_URI'].' $_SESSION :' . var_export($_SESSION, true));
+        $this->logger->debug($_SERVER['REQUEST_URI'].' $diskSession :' . var_export($diskSession, true));
         $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
         $finalSession = $ret['finalSession'];
 
         $this->session = $finalSession;
         $_SESSION = $finalSession;
-
+        $this->logger->debug($_SERVER['REQUEST_URI'].' $_SESSION after compare :' . var_export($_SESSION, true));
         $this->readCalled = true;
 
         return session_encode();
@@ -101,6 +116,7 @@ class  OptimisticSessionHandler extends \SessionHandler
      */
     private function getSessionStoredOnDisk($session_id)
     {
+        $this->logger->alert($session_id);
         $data = parent::read($session_id);
 
         // Unserialize session (trick : session_decode writes in $_SESSION)
@@ -135,7 +151,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->lock = true;
         $this->secureSessionStart();
-
+        $this->logger->debug($_SERVER['REQUEST_URI'].' $_SESSION before right :' . var_export($_SESSION, true));
         session_write_close();
         $this->lock = false;
     }
