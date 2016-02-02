@@ -62,3 +62,5 @@ So you can just declare a new instance like this:
 **Warning:** The session can't be destroyed by `session_destroy()` (It will throw an error). To destroy the session, you must empty the `$_SESSION` array.
 
     $_SESSION = array();
+
+If you want more information about this package you can go on [OptimisticSessionHandler: A New Way To Think PHP Sessions](http://www.thecodingmachine.com/optimisticsessionhandler-a-new-way-to-think-php-sessions/)
