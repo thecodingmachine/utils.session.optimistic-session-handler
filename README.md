@@ -5,10 +5,10 @@
 
 
 # OptimisticSessionHandler
-File-based session handler that **releases session lock quickly**. Useful to speed up multiple Ajax calls on the same page.
+PHP file-based session handler that **releases session lock quickly**. Useful to speed up multiple Ajax calls on the same page.
 
 ## Why do we need this session handler?
-It improves performances in case of projects with multiple and long Ajax requests.
+It improves performances in case of projects with multiple and long Ajax requests running.
 Several requests using the user session can be concurrently executed by the server since the session is not locked for a long time.
 
 By default, PHP writes session files on the disk. When you execute `session_start`, the session file is opened, and a lock is 
