@@ -84,7 +84,7 @@ class  OptimisticSessionHandler extends \SessionHandler
             $this->shutdownFunctionRegistered = true;
         }
         $this->sessionBeforeSessionStart = isset($_SESSION) ? $_SESSION : [];
-        parent::open($save_path, $name);
+        return parent::open($save_path, $name);
     }
 
     /**
