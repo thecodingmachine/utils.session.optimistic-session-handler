@@ -141,7 +141,8 @@ class  OptimisticSessionHandler extends \SessionHandler
         $data = parent::read($session_id);
 
         // Unserialize session (trick : session_decode writes in $_SESSION)
-        $currentSession = $_SESSION;
+        // Due to PHP 7 change of session_decode behaviour (https://bugs.php.net/bug.php?id=73302) we are now using array_map function
+        $currentSession = array_map(function($a) {return $a; }, $_SESSION);
         session_decode($data);
         $diskSession = $_SESSION;
         $_SESSION = $currentSession;
