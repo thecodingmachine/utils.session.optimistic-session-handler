@@ -103,8 +103,10 @@ class  OptimisticSessionHandler extends \SessionHandler
         $_SESSION = array_map(function($a) {return $a; }, $this->sessionBeforeSessionStart);
         $diskSession = $this->getSessionStoredOnDisk($session_id);
         if (!$this->lock) {
-            $_SESSION = $diskSession;
-            session_write_close();
+            if (version_compare(PHP_VERSION, '7.0.0', '<')) {
+                $_SESSION = $diskSession;
+                session_write_close();
+            }
             $_SESSION = $this->sessionBeforeSessionStart;
         }
 
@@ -126,7 +128,7 @@ class  OptimisticSessionHandler extends \SessionHandler
             $this->logger->debug($_SERVER['REQUEST_URI'].' READ lock : '.var_export($this->lock, true).' --- Session: '.var_export($_SESSION, true));
         }
 
-        return session_encode();
+        return session_encode() ?: '';
     }
 
     /**
@@ -187,8 +189,15 @@ class  OptimisticSessionHandler extends \SessionHandler
     private function secureSessionStart()
     {
         $this->readCalled = false;
-        //We need to '@' the session_start() because we can't send session cookie more then once.
-        @session_start();
+
+        // session_start() will not start a new session if the headers have already been sent, unless it
+        // thinks that it does not have to send cookie or cache limiter headers.
+        //
+        // The @ prefix suppresses the warning PHP gives for setting these values after the session has
+        // started.
+        @ini_set('session.use_cookies', false);
+        @ini_set('session.cache_limiter', null);
+        @session_start(['read_and_close' => false]);
         if (!$this->readCalled) {
             throw new UnregisteredHandlerException('It seems that the OptimisticSessionHandler has been unregistered.');
         }

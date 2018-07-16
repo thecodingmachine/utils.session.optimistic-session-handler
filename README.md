@@ -45,6 +45,10 @@ Then you can start the session as usual
 
     session_start();
 
+Or for PHP versions >= 7.0
+
+    session_start(['read_and_close' => true]);
+
 Then the `$_SESSION` array is accessible.
 
 You can configure rules for managing conflicts. Just add element to the class parameter $conflictRules.

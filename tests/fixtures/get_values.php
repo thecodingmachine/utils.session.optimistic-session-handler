@@ -10,7 +10,7 @@ $waitBeforeStart = isset($_GET['waitBeforeStart']) ? $_GET['waitBeforeStart'] : 
 $waitBeforeQuit = isset($_GET['waitBeforeQuit']) ? $_GET['waitBeforeQuit'] : 0;
 
 sleep($waitBeforeStart);
-session_start();
+session_start(['read_and_close' => true]);
 
 echo 'a='.(isset($_SESSION['a']) ? $_SESSION['a'] : 'null')."\n";
 echo 'b='.(isset($_SESSION['b']) ? $_SESSION['b'] : 'null')."\n";

@@ -9,11 +9,11 @@ use Mouf\Utils\Session\SessionHandler\OptimisticSessionHandler;
 
 session_set_save_handler(new OptimisticSessionHandler(), true);
 
-session_start();
+session_start(['read_and_close' => true]);
 
 $_SESSION['mouf'] = 'mouf';
 
 session_set_save_handler(new \SessionHandler(), true);// unset the OptimisticSessionHandler
 
 // Second session start... that should trigger an Exception.
-@session_start();
+@session_start(['read_and_close' => true]);
