@@ -176,6 +176,7 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->lock = true;
         $this->secureSessionStart();
+        session_write_close();
         $this->session = $_SESSION;
         $this->lock = false;
     }
@@ -191,9 +192,7 @@ class  OptimisticSessionHandler extends \SessionHandler
         //
         // The @ prefix suppresses the warning PHP gives for setting these values after the session has
         // started.
-//        @ini_set('session.use_cookies', false);
-//        @ini_set('session.cache_limiter', null);
-        @session_start(['read_and_close' => true]);
+        @session_start();
         if (!$this->readCalled) {
             throw new UnregisteredHandlerException('It seems that the OptimisticSessionHandler has been unregistered.');
         }
