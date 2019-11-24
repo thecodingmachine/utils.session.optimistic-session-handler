@@ -76,6 +76,7 @@ class  OptimisticSessionHandler extends \SessionHandler
     /**
      * @param string $save_path
      * @param string $name
+     * @return bool
      */
     public function open($save_path, $name)
     {
@@ -94,6 +95,7 @@ class  OptimisticSessionHandler extends \SessionHandler
      * @param string $session_id
      *
      * @return string
+     * @throws SessionConflictException
      */
     public function read($session_id)
     {
@@ -103,8 +105,6 @@ class  OptimisticSessionHandler extends \SessionHandler
         $_SESSION = array_map(function($a) {return $a; }, $this->sessionBeforeSessionStart);
         $diskSession = $this->getSessionStoredOnDisk($session_id);
         if (!$this->lock) {
-            $_SESSION = $diskSession;
-            session_write_close();
             $_SESSION = $this->sessionBeforeSessionStart;
         }
 
@@ -126,7 +126,7 @@ class  OptimisticSessionHandler extends \SessionHandler
             $this->logger->debug($_SERVER['REQUEST_URI'].' READ lock : '.var_export($this->lock, true).' --- Session: '.var_export($_SESSION, true));
         }
 
-        return session_encode();
+        return session_encode() ?: '';
     }
 
     /**
@@ -176,7 +176,6 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         $this->lock = true;
         $this->secureSessionStart();
-        session_write_close();
         $this->session = $_SESSION;
         $this->lock = false;
     }
@@ -187,8 +186,14 @@ class  OptimisticSessionHandler extends \SessionHandler
     private function secureSessionStart()
     {
         $this->readCalled = false;
-        //We need to '@' the session_start() because we can't send session cookie more then once.
-        @session_start();
+        // session_start() will not start a new session if the headers have already been sent, unless it
+        // thinks that it does not have to send cookie or cache limiter headers.
+        //
+        // The @ prefix suppresses the warning PHP gives for setting these values after the session has
+        // started.
+//        @ini_set('session.use_cookies', false);
+//        @ini_set('session.cache_limiter', null);
+        @session_start(['read_and_close' => true]);
         if (!$this->readCalled) {
             throw new UnregisteredHandlerException('It seems that the OptimisticSessionHandler has been unregistered.');
         }
@@ -199,7 +204,8 @@ class  OptimisticSessionHandler extends \SessionHandler
      * @param $localSession
      * @param $remoteSession
      *
-     * @return ["needWrite"=>bool, "finalSession"=>array]
+     * @return array ["needWrite"=>bool, "finalSession"=>array]
+     * @throws SessionConflictException
      */
     private function compareSessions($oldSession, $localSession, $remoteSession)
     {
