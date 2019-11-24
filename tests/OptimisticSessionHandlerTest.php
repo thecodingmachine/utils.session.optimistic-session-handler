@@ -4,8 +4,9 @@ namespace Mouf\Utils\Session\SessionHandler;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use PHPUnit\Framework\TestCase;
 
-class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
+class OptimisticSessionHandlerTest extends TestCase
 {
     public function testSimpleChange()
     {
@@ -22,7 +23,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
 
-        $this->assertContains('a=1', $body);
+        $this->assertStringContainsString('a=1', $body);
     }
 
     public function testTwoSimultaneousNonConflictingChanges()
@@ -52,8 +53,8 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
 
-        $this->assertContains('a=42', $body);
-        $this->assertContains('b=24', $body);
+        $this->assertStringContainsString('a=42', $body);
+        $this->assertStringContainsString('b=24', $body);
     }
 
     public function testTwoSessionStarts()
@@ -77,7 +78,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $response = $client->get('tests/fixtures/get_values.php');
         $body = (string) $response->getBody();
 
-        $this->assertContains('a=42', $body);
+        $this->assertStringContainsString('a=42', $body);
     }
 
     public function testTwoSimultaneousConflictingChanges()
@@ -102,7 +103,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $results = Promise\unwrap($promises);
 
         $this->assertEmpty((string) $results['a']->getBody());
-        $this->assertContains('SessionConflictException', (string) $results['b']->getBody());
+        $this->assertStringContainsString('SessionConflictException', (string) $results['b']->getBody());
     }
 
     public function testUnregisterSesssionHandler()
@@ -115,7 +116,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
         $response = $client->get('tests/fixtures/start-unregister-and-restart.php');
         $body = (string) $response->getBody();
 
-        $this->assertContains('UnregisteredHandlerException', $body);
+        $this->assertStringContainsString('UnregisteredHandlerException', $body);
     }
 
     public function testReadConsistency()
@@ -137,7 +138,7 @@ class OptimisticSessionHandlerTest extends \PHPUnit_Framework_TestCase
 
         // Wait on all of the requests to complete.
         $results = Promise\unwrap($promises);
-        $this->assertContains('a=1', (string) $results['firstRead']->getBody());
-        $this->assertContains('a=1', (string) $results['secondRead']->getBody());
+        $this->assertStringContainsString('a=1', (string) $results['firstRead']->getBody());
+        $this->assertStringContainsString('a=1', (string) $results['secondRead']->getBody());
     }
 }
