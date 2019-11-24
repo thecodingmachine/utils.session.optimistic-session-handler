@@ -6,7 +6,7 @@ use Mouf\Utils\Session\SessionHandler\OptimisticSessionHandler;
 
 session_set_save_handler(new OptimisticSessionHandler(), true);
 echo 'Starting session with the OptimisticSessionHandler<br/>';
-session_start();
+session_start(['read_and_close' => true]);
 
 echo 'The session status is : ';
 switch (session_status()) {
