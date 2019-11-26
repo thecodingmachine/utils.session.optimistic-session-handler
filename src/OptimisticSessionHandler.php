@@ -62,6 +62,7 @@ class  OptimisticSessionHandler extends \SessionHandler
      * By default PHP save session in files.
      *
      * @param array $conflictRules
+     * @param LoggerInterface|null $logger
      */
     public function __construct(array $conflictRules = array(), LoggerInterface $logger = null)
     {
@@ -76,6 +77,7 @@ class  OptimisticSessionHandler extends \SessionHandler
     /**
      * @param string $save_path
      * @param string $name
+     * @return bool
      */
     public function open($save_path, $name)
     {
@@ -94,17 +96,18 @@ class  OptimisticSessionHandler extends \SessionHandler
      * @param string $session_id
      *
      * @return string
+     * @throws SessionConflictException
      */
     public function read($session_id)
     {
         if (null !== $this->logger) {
-            $this->logger->debug($_SERVER['REQUEST_URI'].'Enter session read');
+            $this->logger->debug($_SERVER['REQUEST_URI'] . 'Enter session read');
         }
-        $_SESSION = array_map(function($a) {return $a; }, $this->sessionBeforeSessionStart);
+        $_SESSION = array_map(function ($a) {
+            return $a;
+        }, $this->sessionBeforeSessionStart);
         $diskSession = $this->getSessionStoredOnDisk($session_id);
         if (!$this->lock) {
-            $_SESSION = $diskSession;
-            session_write_close();
             $_SESSION = $this->sessionBeforeSessionStart;
         }
 
@@ -123,10 +126,10 @@ class  OptimisticSessionHandler extends \SessionHandler
         $this->fisrtSessionStart = false;
 
         if (null !== $this->logger) {
-            $this->logger->debug($_SERVER['REQUEST_URI'].' READ lock : '.var_export($this->lock, true).' --- Session: '.var_export($_SESSION, true));
+            $this->logger->debug($_SERVER['REQUEST_URI'] . ' READ lock : ' . var_export($this->lock, true) . ' --- Session: ' . var_export($_SESSION, true));
         }
 
-        return session_encode();
+        return session_encode() ?: '';
     }
 
     /**
@@ -142,7 +145,9 @@ class  OptimisticSessionHandler extends \SessionHandler
 
         // Unserialize session (trick : session_decode writes in $_SESSION)
         // Due to PHP 7 change of session_decode behaviour (https://bugs.php.net/bug.php?id=73302) we are now using array_map function
-        $currentSession = array_map(function($a) {return $a; }, $_SESSION);
+        $currentSession = array_map(function ($a) {
+            return $a;
+        }, $_SESSION);
         session_decode($data);
         $diskSession = $_SESSION;
         $_SESSION = $currentSession;
@@ -159,7 +164,7 @@ class  OptimisticSessionHandler extends \SessionHandler
     public function writeIfSessionChanged()
     {
         if (null !== $this->logger) {
-            $this->logger->debug($_SERVER['REQUEST_URI'].'Enter session write');
+            $this->logger->debug($_SERVER['REQUEST_URI'] . 'Enter session write');
         }
         if ($this->session === null) {
             return;
@@ -187,7 +192,11 @@ class  OptimisticSessionHandler extends \SessionHandler
     private function secureSessionStart()
     {
         $this->readCalled = false;
-        //We need to '@' the session_start() because we can't send session cookie more then once.
+        // session_start() will not start a new session if the headers have already been sent, unless it
+        // thinks that it does not have to send cookie or cache limiter headers.
+        //
+        // The @ prefix suppresses the warning PHP gives for setting these values after the session has
+        // started.
         @session_start();
         if (!$this->readCalled) {
             throw new UnregisteredHandlerException('It seems that the OptimisticSessionHandler has been unregistered.');
@@ -199,7 +208,8 @@ class  OptimisticSessionHandler extends \SessionHandler
      * @param $localSession
      * @param $remoteSession
      *
-     * @return ["needWrite"=>bool, "finalSession"=>array]
+     * @return array ["needWrite"=>bool, "finalSession"=>array]
+     * @throws SessionConflictException
      */
     private function compareSessions($oldSession, $localSession, $remoteSession)
     {
@@ -241,12 +251,12 @@ class  OptimisticSessionHandler extends \SessionHandler
                                     $finalSession[$key] = $theirs;
                                     break;
                                 } elseif ($conflictRule == self::FAIL) {
-                                    throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'"');
+                                    throw new SessionConflictException('Your session conflicts with a session change in another process on key "' . $key . '"');
                                 }
                             }
                         }
                         if (!$hasConflictRules) {
-                            throw new SessionConflictException('Your session conflicts with a session change in another process on key "'.$key.'.
+                            throw new SessionConflictException('Your session conflicts with a session change in another process on key "' . $key . '.
                             You can configure a conflict rule which allow us to handle the conflict"');
                         }
                     } elseif ($base != $mine && $base == $theirs && $mine != $theirs) {

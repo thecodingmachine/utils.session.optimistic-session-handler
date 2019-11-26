@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__.'/../../vendor/autoload.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
 
 use Mouf\Utils\Session\SessionHandler\OptimisticSessionHandler;
 
@@ -13,7 +13,7 @@ $waitBeforeQuit = isset($_GET['waitBeforeQuit']) ? $_GET['waitBeforeQuit'] : 0;
 
 sleep($waitBeforeStart);
 
-session_start();
+session_start(['read_and_close' => true]);
 
 if ($a) {
     $_SESSION['a'] = $a;

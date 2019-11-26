@@ -43,7 +43,7 @@ And save it as your default session handler :
 
 Then you can start the session as usual
 
-    session_start();
+    session_start(['read_and_close' => true]);
 
 Then the `$_SESSION` array is accessible.
 
