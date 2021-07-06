@@ -46,7 +46,7 @@ class  OptimisticSessionHandler extends \SessionHandler
     /**
      * @var bool
      */
-    private $fisrtSessionStart = true;
+    private $firstSessionStart = true;
 
     /**
      * @var bool
@@ -111,19 +111,19 @@ class  OptimisticSessionHandler extends \SessionHandler
             $_SESSION = $this->sessionBeforeSessionStart;
         }
 
-        if (!$this->lock && !$this->fisrtSessionStart) {
+        if (!$this->lock && !$this->firstSessionStart) {
             $finalSession = $_SESSION;
         } else {
             $ret = $this->compareSessions($this->session, $_SESSION, $diskSession);
             $finalSession = $ret['finalSession'];
         }
 
-        if (!$this->lock && $this->fisrtSessionStart) {
+        if (!$this->lock && $this->firstSessionStart) {
             $this->session = $finalSession;
         }
         $_SESSION = $finalSession;
         $this->readCalled = true;
-        $this->fisrtSessionStart = false;
+        $this->firstSessionStart = false;
 
         if (null !== $this->logger) {
             $this->logger->debug($_SERVER['REQUEST_URI'] . ' READ lock : ' . var_export($this->lock, true) . ' --- Session: ' . var_export($_SESSION, true));
